@@ -104,4 +104,13 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  // EcoThrottle statistics and state.
+  uint64 window_cpu_ticks;     // CPU ticks consumed in the current window
+  int window_sleep_count;      // Voluntary sleep calls in the current window
+  int window_ticks;            // Ticks elapsed in the current window
+  uint64 total_cpu_ticks;      // Total CPU ticks consumed by this process
+  int busy_score;              // Score tracking repeated busy-wait behavior
+  int cooldown_ticks;          // Remaining ticks to skip scheduling
+  int times_throttled;         // Number of times throttling was applied
 };

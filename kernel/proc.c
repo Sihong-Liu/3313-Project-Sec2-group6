@@ -4,6 +4,7 @@
 #include "riscv.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "ecostat.h"
 #include "defs.h"
 
 struct cpu cpus[NCPU];
@@ -25,6 +26,50 @@ extern char trampoline[]; // trampoline.S
 // memory model when using p->parent.
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
+
+// EcoThrottle tuning parameters.
+#define ECO_WINDOW_TICKS     20
+#define ECO_CPU_THRESHOLD    16
+#define ECO_BUSY_SCORE_LIMIT 1
+#define ECO_COOLDOWN_TICKS   20
+
+static void
+check_and_apply_eco_throttle(struct proc *p)
+{
+  if(p->window_ticks < ECO_WINDOW_TICKS)
+    return;
+
+  if(p->window_cpu_ticks >= ECO_CPU_THRESHOLD && p->window_sleep_count == 0){
+    p->busy_score++;
+  } else if(p->busy_score > 0){
+    p->busy_score--;
+  }
+
+  if(p->busy_score >= ECO_BUSY_SCORE_LIMIT){
+    p->cooldown_ticks = ECO_COOLDOWN_TICKS;
+    p->times_throttled++;
+    p->busy_score = 0;
+    printf("eco-throttle: pid=%d throttled\n", p->pid);
+  }
+
+  p->window_cpu_ticks = 0;
+  p->window_sleep_count = 0;
+  p->window_ticks = 0;
+}
+
+void
+eco_account_tick(void)
+{
+  struct proc *p = myproc();
+
+  if(p == 0)
+    return;
+
+  p->total_cpu_ticks++;
+  p->window_cpu_ticks++;
+  p->window_ticks++;
+  check_and_apply_eco_throttle(p);
+}
 
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
@@ -145,6 +190,15 @@ found:
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
+
+  // Initialize EcoThrottle fields.
+  p->window_cpu_ticks = 0;
+  p->window_sleep_count = 0;
+  p->window_ticks = 0;
+  p->total_cpu_ticks = 0;
+  p->busy_score = 0;
+  p->cooldown_ticks = 0;
+  p->times_throttled = 0;
 
   return p;
 }
@@ -441,17 +495,21 @@ scheduler(void)
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
+        if(p->cooldown_ticks > 0){
+          p->cooldown_ticks--;
+        } else {
+          // Switch to chosen process.  It is the process's job
+          // to release its lock and then reacquire it
+          // before jumping back to us.
+          p->state = RUNNING;
+          c->proc = p;
+          swtch(&c->context, &p->context);
 
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-        found = 1;
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          c->proc = 0;
+          found = 1;
+        }
       }
       release(&p->lock);
     }
@@ -555,6 +613,7 @@ sleep(void *chan, struct spinlock *lk)
   release(lk);
 
   // Go to sleep.
+  p->window_sleep_count++;
   p->chan = chan;
   p->state = SLEEPING;
 
@@ -657,6 +716,39 @@ either_copyin(void *dst, int user_src, uint64 src, uint64 len)
     memmove(dst, (char*)src, len);
     return 0;
   }
+}
+
+int
+ecopstat(uint64 uaddr, int max)
+{
+  struct proc *p;
+  struct proc *cur = myproc();
+  struct ecostat st;
+  int count = 0;
+
+  if(max < 0)
+    return -1;
+
+  for(p = proc; p < &proc[NPROC] && count < max; p++){
+    acquire(&p->lock);
+    if(p->state != UNUSED){
+      st.pid = p->pid;
+      safestrcpy(st.name, p->name, sizeof(st.name));
+      st.total_cpu_ticks = p->total_cpu_ticks;
+      st.busy_score = p->busy_score;
+      st.cooldown_ticks = p->cooldown_ticks;
+      st.times_throttled = p->times_throttled;
+      release(&p->lock);
+      if(copyout(cur->pagetable, uaddr + count * sizeof(st),
+                 (char *)&st, sizeof(st)) < 0)
+        return -1;
+      count++;
+    } else {
+      release(&p->lock);
+    }
+  }
+
+  return count;
 }
 
 // Print a process listing to console.  For debugging.
