@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "ecomem.h"
 
 struct cpu cpus[NCPU];
 
@@ -657,6 +658,93 @@ either_copyin(void *dst, int user_src, uint64 src, uint64 len)
     memmove(dst, (char*)src, len);
     return 0;
   }
+}
+
+// Collect eco memory statistics for all processes and system-wide.
+// Copies per-process stats to uproc_addr and system stats to usys_addr.
+// Returns number of processes reported, or -1 on error.
+int
+ecomemstat(uint64 uproc_addr, uint64 usys_addr, int max)
+{
+  struct proc *p;
+  struct ecomem_proc ep;
+  struct ecomem_sys es;
+  int count = 0;
+  struct proc *curp = myproc();
+
+  // Gather system-wide stats
+  es.total_pages = ktotalpages();
+  es.free_pages = kfreepages();
+  es.used_pages = es.total_pages - es.free_pages;
+  if(es.total_pages > 0)
+    es.utilization_percent = (int)((es.used_pages * 100) / es.total_pages);
+  else
+    es.utilization_percent = 0;
+
+  // Pages that could be powered down (free pages)
+  es.pages_saveable = es.free_pages;
+
+  // Efficiency score: higher free ratio = more pages can be powered down
+  // But also penalize heavy fragmentation across processes
+  es.efficiency_score = 100 - es.utilization_percent;
+
+  // Gather per-process stats
+  uint64 total_waste_pages = 0;
+  for(p = proc; p < &proc[NPROC]; p++){
+    acquire(&p->lock);
+    if(p->state == UNUSED){
+      release(&p->lock);
+      continue;
+    }
+    if(count >= max){
+      release(&p->lock);
+      break;
+    }
+
+    ep.pid = p->pid;
+    safestrcpy(ep.name, p->name, sizeof(ep.name));
+    ep.mem_bytes = p->sz;
+
+    // Count pages actually mapped in page table
+    if(p->pagetable && p->sz > 0)
+      ep.pages_mapped = count_mapped_pages(p->pagetable, p->sz);
+    else
+      ep.pages_mapped = 0;
+
+    // Total pages in address space (some may be lazily allocated)
+    ep.pages_allocated = PGROUNDUP(p->sz) / PGSIZE;
+    if(ep.pages_allocated >= ep.pages_mapped)
+      ep.pages_unmapped = ep.pages_allocated - ep.pages_mapped;
+    else
+      ep.pages_unmapped = 0;
+
+    // Waste percentage: unmapped pages as fraction of total address space pages
+    if(ep.pages_allocated > 0)
+      ep.waste_percent = (int)((ep.pages_unmapped * 100) / ep.pages_allocated);
+    else
+      ep.waste_percent = 0;
+
+    total_waste_pages += ep.pages_unmapped;
+    release(&p->lock);
+
+    if(copyout(curp->pagetable, uproc_addr + count * sizeof(ep),
+               (char *)&ep, sizeof(ep)) < 0)
+      return -1;
+    count++;
+  }
+
+  // Adjust efficiency score based on process-level waste
+  if(es.used_pages > 0){
+    int waste_ratio = (int)((total_waste_pages * 100) / es.used_pages);
+    es.efficiency_score = es.efficiency_score > waste_ratio ?
+                          es.efficiency_score - waste_ratio : 0;
+    if(es.efficiency_score > 100) es.efficiency_score = 100;
+  }
+
+  if(copyout(curp->pagetable, usys_addr, (char *)&es, sizeof(es)) < 0)
+    return -1;
+
+  return count;
 }
 
 // Print a process listing to console.  For debugging.

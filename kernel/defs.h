@@ -59,6 +59,8 @@ void            ireclaim(int);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+uint64          kfreepages(void);
+uint64          ktotalpages(void);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -76,6 +78,9 @@ int             pipewrite(struct pipe*, uint64, int);
 int             printf(char*, ...) __attribute__ ((format (printf, 1, 2)));
 void            panic(char*) __attribute__((noreturn));
 void            printfinit(void);
+
+// ecomem
+int             ecomemstat(uint64, uint64, int);
 
 // proc.c
 int             cpuid(void);
@@ -169,6 +174,7 @@ int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
 int             ismapped(pagetable_t, uint64);
 uint64          vmfault(pagetable_t, uint64, int);
+uint64          count_mapped_pages(pagetable_t, uint64);
 
 // plic.c
 void            plicinit(void);

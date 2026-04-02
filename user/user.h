@@ -24,6 +24,9 @@ int getpid(void);
 char* sys_sbrk(int,int);
 int pause(int);
 int uptime(void);
+struct ecomem_proc;
+struct ecomem_sys;
+int ecomemstat(struct ecomem_proc*, struct ecomem_sys*, int);
 
 // ulib.c
 int stat(const char*, struct stat*);
