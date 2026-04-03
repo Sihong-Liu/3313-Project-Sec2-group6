@@ -42,3 +42,7 @@ entry("getpid");
 entry("sbrk");
 entry("pause");
 entry("uptime");
+# Sihong's Code Begin: Environmental monitoring syscall stubs
+entry("submitsensor");
+entry("getsensorstats");
+# Sihong's Code End

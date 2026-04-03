@@ -101,6 +101,10 @@ extern uint64 sys_unlink(void);
 extern uint64 sys_link(void);
 extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
+// Sihong's Code Begin: Environmental monitoring syscall handlers
+extern uint64 sys_submitsensor(void);
+extern uint64 sys_getsensorstats(void);
+// Sihong's Code End: Environmental monitoring syscall handlers
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -126,6 +130,10 @@ static uint64 (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+// Sihong's Code Begin: Environmental monitoring syscall table
+[SYS_submitsensor] sys_submitsensor,
+[SYS_getsensorstats] sys_getsensorstats,
+// Sihong's Code End: Environmental monitoring syscall table
 };
 
 void
