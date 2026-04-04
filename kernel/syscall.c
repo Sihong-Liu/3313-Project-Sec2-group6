@@ -106,6 +106,7 @@ extern uint64 sys_submitsensor(void);
 extern uint64 sys_getsensorstats(void);
 // Sihong's Code End: Environmental monitoring syscall handlers
 extern uint64 sys_ecopstat(void);
+extern uint64 sys_ecomemstat(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -136,6 +137,7 @@ static uint64 (*syscalls[])(void) = {
 [SYS_getsensorstats] sys_getsensorstats,
 // Sihong's Code End: Environmental monitoring syscall table
 [SYS_ecopstat] sys_ecopstat,
+[SYS_ecomemstat] sys_ecomemstat,
 };
 
 void

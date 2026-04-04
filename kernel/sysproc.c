@@ -139,6 +139,7 @@ sys_getsensorstats(void)
   return 0;
 }
 // Sihong's Code End
+
 uint64
 sys_ecopstat(void)
 {
@@ -150,4 +151,17 @@ sys_ecopstat(void)
   if(max < 0)
     return -1;
   return ecopstat(uaddr, max);
+}
+
+uint64
+sys_ecomemstat(void)
+{
+  uint64 uproc_addr;
+  uint64 usys_addr;
+  int max;
+
+  argaddr(0, &uproc_addr);
+  argaddr(1, &usys_addr);
+  argint(2, &max);
+  return ecomemstat(uproc_addr, usys_addr, max);
 }

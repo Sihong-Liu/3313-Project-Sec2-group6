@@ -47,3 +47,4 @@ entry("submitsensor");
 entry("getsensorstats");
 # Sihong's Code End
 entry("ecopstat");
+entry("ecomemstat");

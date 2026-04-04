@@ -24,4 +24,5 @@
 #define SYS_submitsensor 22
 #define SYS_getsensorstats 23
 // Sihong's Code End: Environmental monitoring syscalls
-#define SYS_ecopstat 22
+#define SYS_ecopstat 24
+#define SYS_ecomemstat 25
