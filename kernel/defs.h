@@ -8,6 +8,9 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+// Sihong's Code Begin: Environmental monitoring declarations
+struct sensor_stats;
+// Sihong's Code End
 
 // bio.c
 void            binit(void);
@@ -103,9 +106,18 @@ void            userinit(void);
 int             kwait(uint64);
 void            wakeup(void*);
 void            yield(void);
+void            eco_account_tick(void);
+int             ecopstat(uint64, int);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
+
+// Sihong's Code Begin: Environmental monitoring declarations
+// sensor.c
+void            sensorinit(void);
+int             sensor_submit(int, int);
+int             sensor_get_stats(int, struct sensor_stats*);
+// Sihong's Code End
 
 // swtch.S
 void            swtch(struct context*, struct context*);
