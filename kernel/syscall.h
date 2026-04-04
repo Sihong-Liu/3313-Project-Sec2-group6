@@ -20,4 +20,8 @@
 #define SYS_link   19
 #define SYS_mkdir  20
 #define SYS_close  21
+// Sihong's Code Begin: Environmental monitoring syscalls
+#define SYS_submitsensor 22
+#define SYS_getsensorstats 23
+// Sihong's Code End: Environmental monitoring syscalls
 #define SYS_ecopstat 22

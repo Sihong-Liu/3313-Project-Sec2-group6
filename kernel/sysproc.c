@@ -6,6 +6,8 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "vm.h"
+// Sihong's Code: shared sensor definitions for environmental monitoring syscalls
+#include "sensor.h"
 
 uint64
 sys_exit(void)
@@ -108,6 +110,35 @@ sys_uptime(void)
   return xticks;
 }
 
+// Sihong's Code Begin: Environmental monitoring syscalls
+uint64
+sys_submitsensor(void)
+{
+  int type;
+  int value;
+
+  argint(0, &type);
+  argint(1, &value);
+  return sensor_submit(type, value);
+}
+
+uint64
+sys_getsensorstats(void)
+{
+  int type;
+  uint64 addr;
+  struct sensor_stats stats;
+
+  argint(0, &type);
+  argaddr(1, &addr);
+
+  if(sensor_get_stats(type, &stats) < 0)
+    return -1;
+  if(copyout(myproc()->pagetable, addr, (char *)&stats, sizeof(stats)) < 0)
+    return -1;
+  return 0;
+}
+// Sihong's Code End
 uint64
 sys_ecopstat(void)
 {

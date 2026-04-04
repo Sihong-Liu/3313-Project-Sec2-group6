@@ -1,6 +1,8 @@
 K=kernel
 U=user
 
+
+# Sihong's Code: environmental monitoring additions below include kernel/sensor.o
 OBJS = \
   $K/entry.o \
   $K/start.o \
@@ -18,6 +20,7 @@ OBJS = \
   $K/trap.o \
   $K/syscall.o \
   $K/sysproc.o \
+  $K/sensor.o \
   $K/bio.o \
   $K/fs.o \
   $K/log.o \
@@ -145,6 +148,12 @@ UPROGS=\
 	$U/_logstress\
 	$U/_forphan\
 	$U/_dorphan\
+	$U/_temp_sensor\
+	$U/_air_sensor\
+	$U/_energy_sensor\
+	$U/_sensor_monitor\
+
+# Sihong's Code: environmental monitoring additions above include the four sensor user programs
 	$U/_busyloop\
 	$U/_politework\
 	$U/_ecops\

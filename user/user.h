@@ -1,6 +1,9 @@
 #define SBRK_ERROR ((char *)-1)
 
 struct stat;
+// Sihong's Code Begin: Environmental monitoring user ABI
+struct sensor_stats;
+// Sihong's Code End
 struct ecostat;
 
 // system calls
@@ -25,6 +28,10 @@ int getpid(void);
 char* sys_sbrk(int,int);
 int pause(int);
 int uptime(void);
+// Sihong's Code Begin: Environmental monitoring user ABI
+int submitsensor(int, int);
+int getsensorstats(int, struct sensor_stats*);
+// Sihong's Code End
 int ecopstat(struct ecostat*, int);
 
 // ulib.c
