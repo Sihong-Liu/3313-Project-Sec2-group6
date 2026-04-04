@@ -154,6 +154,9 @@ UPROGS=\
 	$U/_sensor_monitor\
 
 # Sihong's Code: environmental monitoring additions above include the four sensor user programs
+	$U/_busyloop\
+	$U/_politework\
+	$U/_ecops\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

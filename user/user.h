@@ -4,6 +4,7 @@ struct stat;
 // Sihong's Code Begin: Environmental monitoring user ABI
 struct sensor_stats;
 // Sihong's Code End
+struct ecostat;
 
 // system calls
 int fork(void);
@@ -31,6 +32,7 @@ int uptime(void);
 int submitsensor(int, int);
 int getsensorstats(int, struct sensor_stats*);
 // Sihong's Code End
+int ecopstat(struct ecostat*, int);
 
 // ulib.c
 int stat(const char*, struct stat*);

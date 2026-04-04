@@ -135,6 +135,15 @@ kexec(char *path, char **argv)
   p->trapframe->sp = sp; // initial stack pointer
   proc_freepagetable(oldpagetable, oldsz);
 
+  // Reset EcoThrottle statistics for the new program image.
+  p->window_cpu_ticks = 0;
+  p->window_sleep_count = 0;
+  p->window_ticks = 0;
+  p->total_cpu_ticks = 0;
+  p->busy_score = 0;
+  p->cooldown_ticks = 0;
+  p->times_throttled = 0;
+
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
  bad:
