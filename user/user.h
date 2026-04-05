@@ -33,6 +33,9 @@ int submitsensor(int, int);
 int getsensorstats(int, struct sensor_stats*);
 // Sihong's Code End
 int ecopstat(struct ecostat*, int);
+struct ecomem_proc;
+struct ecomem_sys;
+int ecomemstat(struct ecomem_proc*, struct ecomem_sys*, int);
 
 // ulib.c
 int stat(const char*, struct stat*);

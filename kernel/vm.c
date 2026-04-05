@@ -484,3 +484,21 @@ ismapped(pagetable_t pagetable, uint64 va)
   }
   return 0;
 }
+
+// Count the number of mapped user pages in a page table
+// for a process with address space of size sz.
+uint64
+count_mapped_pages(pagetable_t pagetable, uint64 sz)
+{
+  uint64 count = 0;
+  uint64 a;
+
+  for(a = 0; a < sz; a += PGSIZE){
+    pte_t *pte = walk(pagetable, a, 0);
+    if(pte == 0)
+      continue;
+    if((*pte & PTE_V) && (*pte & PTE_U))
+      count++;
+  }
+  return count;
+}

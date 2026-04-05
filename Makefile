@@ -156,6 +156,8 @@ UPROGS=\
 	$U/_busyloop\
 	$U/_politework\
 	$U/_ecops\
+	$U/_ecomem\
+	$U/_memwaste\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
