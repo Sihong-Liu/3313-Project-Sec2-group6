@@ -17,6 +17,7 @@ main(void)
 {
   int step;
 
+  printf("energy_sensor: running\n");
   step = 0;
   for(;;){
     if(submitsensor(SENSOR_TYPE_ENERGY_USAGE, next_energy_value(step)) < 0){
@@ -27,4 +28,3 @@ main(void)
     pause(28);
   }
 }
-

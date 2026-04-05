@@ -152,8 +152,7 @@ UPROGS=\
 	$U/_air_sensor\
 	$U/_energy_sensor\
 	$U/_sensor_monitor\
-
-# Sihong's Code: environmental monitoring additions above include the four sensor user programs
+	$U/_sensor_demo\
 	$U/_busyloop\
 	$U/_politework\
 	$U/_ecops\
