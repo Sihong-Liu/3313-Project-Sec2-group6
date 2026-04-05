@@ -46,3 +46,4 @@ entry("uptime");
 entry("submitsensor");
 entry("getsensorstats");
 # Sihong's Code End
+entry("ecopstat");
