@@ -35,6 +35,7 @@ main(void)
   spawn("temp_sensor");
   spawn("air_sensor");
   spawn("energy_sensor");
+  pause(30);
 
   monitor_argv[0] = "sensor_monitor";
   monitor_argv[1] = 0;

@@ -17,7 +17,6 @@ main(void)
 {
   int step;
 
-  printf("temp_sensor: running\n");
   step = 0;
   for(;;){
     if(submitsensor(SENSOR_TYPE_TEMPERATURE, next_temperature_value(step)) < 0){

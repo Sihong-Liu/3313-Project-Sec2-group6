@@ -17,7 +17,6 @@ main(void)
 {
   int step;
 
-  printf("air_sensor: running\n");
   step = 0;
   for(;;){
     if(submitsensor(SENSOR_TYPE_AIR_QUALITY, next_air_value(step)) < 0){
