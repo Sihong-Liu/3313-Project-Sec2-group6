@@ -3,6 +3,7 @@
 #include "kernel/sensor.h"
 #include "user/user.h"
 
+#define MONITOR_DURATION_TICKS 150
 #define TICKS_PER_SECOND 10
 
 static void
@@ -35,7 +36,9 @@ main(void)
   int hours;
   int minutes;
   int seconds;
+  int start_ticks;
 
+  start_ticks = uptime();
   for(;;){
     if(read_stats(SENSOR_TYPE_TEMPERATURE, &temp) < 0)
       exit(1);
@@ -63,6 +66,10 @@ main(void)
       printf("WARNING: Energy usage too high\n");
 
     printf("\n");
-    pause(50);
+    if(uptime() - start_ticks >= MONITOR_DURATION_TICKS){
+      printf("sensor_monitor: stopping after %d ticks\n", MONITOR_DURATION_TICKS);
+      exit(0);
+    }
+    pause(20);
   }
 }
