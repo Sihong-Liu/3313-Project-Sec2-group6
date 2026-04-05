@@ -27,4 +27,3 @@ main(void)
     pause(20);
   }
 }
-

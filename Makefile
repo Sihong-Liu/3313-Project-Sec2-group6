@@ -152,6 +152,7 @@ UPROGS=\
 	$U/_air_sensor\
 	$U/_energy_sensor\
 	$U/_sensor_monitor\
+	$U/_sensor_demo\
 	$U/_busyloop\
 	$U/_politework\
 	$U/_ecops\

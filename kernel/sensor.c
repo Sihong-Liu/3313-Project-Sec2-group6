@@ -4,11 +4,11 @@
 #include "defs.h"
 #include "sensor.h"
 
-// Sihong's Code Begin: Environmental monitoring subsystem implementation
 struct sensor_totals {
   int latest;
   int sum;
   int count;
+  int latest_tick;
 };
 
 static struct spinlock sensorlock;
@@ -40,28 +40,29 @@ sensor_submit(int type, int value)
   if(!sensor_type_valid(type))
     return -1;
 
-  acquire(&tickslock);
+  acquire(&tickslock);// Get a consistent snapshot of ticks for this sensor reading
   tick_snapshot = ticks;
   release(&tickslock);
 
-  acquire(&sensorlock);
+  acquire(&sensorlock);// this lock protects both the sensor buffer and the totals by type
 
   sensor_buffer[sensor_write_index].type = type;
   sensor_buffer[sensor_write_index].value = value;
   sensor_buffer[sensor_write_index].tick = tick_snapshot;
-  sensor_write_index = (sensor_write_index + 1) % SENSOR_BUFFER_SIZE;
-  if(sensor_count < SENSOR_BUFFER_SIZE)
+  sensor_write_index = (sensor_write_index + 1) % SENSOR_BUFFER_SIZE;// If the buffer is full, we will overwrite old data, 
+  // but we still want to keep accurate totals and counts
+  if(sensor_count < SENSOR_BUFFER_SIZE)// Only increment count if we haven't filled the buffer yet
     sensor_count++;
 
   stats = &sensor_totals_by_type[type];
   stats->latest = value;
   stats->sum += value;
   stats->count += 1;
+  stats->latest_tick = tick_snapshot;
 
   release(&sensorlock);
   return 0;
 }
-// Sihong's Code End: Environmental monitoring subsystem implementation
 
 int
 sensor_get_stats(int type, struct sensor_stats *out)
@@ -80,6 +81,7 @@ sensor_get_stats(int type, struct sensor_stats *out)
     out->avg = stats->sum / stats->count;
   else
     out->avg = 0;
+  out->latest_tick = stats->latest_tick;
 
   release(&sensorlock);
   return 0;

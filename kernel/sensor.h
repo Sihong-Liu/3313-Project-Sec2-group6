@@ -25,6 +25,7 @@ struct sensor_stats {
   int latest;
   int count;
   int avg;
+  int latest_tick;
 };
 // Sihong's Code End: Environmental monitoring shared definitions
 
