@@ -80,6 +80,9 @@ main(void)
   print_str_pad("BUSY", 6);
   print_str_pad("COOLDOWN", 10);
   print_str_pad("THROTTLED", 10);
+  // Energy-Aware Scheduler: show how many quanta each process has consumed.
+  // A high ENERGY value means the process may be deferred under low load.
+  print_str_pad("ENERGY", 8);
   printf("\n");
   for(int i = 0; i < n; i++){
     print_int_pad(stats[i].pid, 6);
@@ -88,6 +91,7 @@ main(void)
     print_int_pad(stats[i].busy_score, 6);
     print_int_pad(stats[i].cooldown_ticks, 10);
     print_int_pad(stats[i].times_throttled, 10);
+    print_int_pad(stats[i].energy_score, 8);
     printf("\n");
   }
 

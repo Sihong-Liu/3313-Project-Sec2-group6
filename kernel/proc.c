@@ -34,6 +34,68 @@ struct spinlock wait_lock;
 #define ECO_BUSY_SCORE_LIMIT 1
 #define ECO_COOLDOWN_TICKS   20
 
+// ---------------------------------------------------------------------------
+// Energy-Aware Scheduler constants
+//
+// These three knobs control the energy-saving behaviour.  They are kept as
+// named #defines so they are easy to explain on slides and easy to tune.
+//
+//  ENERGY_LOAD_THRESHOLD  – number of *runnable* processes below which we
+//                           consider the system "lightly loaded".  When the
+//                           load is at or above this count every process is
+//                           scheduled normally (we never waste cycles under
+//                           heavy load).
+//
+//  ENERGY_LIMIT           – once a process has accumulated this many
+//                           scheduler quanta (energy_score > ENERGY_LIMIT)
+//                           it is considered "high-energy".  A high-energy
+//                           process will be skipped for one pass whenever
+//                           the system is lightly loaded.
+//
+//  TICK_WEIGHT            – energy units added to a process's energy_score
+//                           each time it completes a scheduling quantum.
+//                           Keeping this at 1 makes the score easy to read:
+//                           "this process has run N scheduler rounds".
+//
+//  ENERGY_DECAY           – energy units subtracted from a high-energy
+//                           process's score each time it is skipped by the
+//                           energy-aware check.  This creates a natural
+//                           regulation cycle and prevents starvation:
+//                           after (ENERGY_LIMIT / ENERGY_DECAY) skips the
+//                           score drops back below the limit and the process
+//                           is scheduled again.
+// ---------------------------------------------------------------------------
+#define ENERGY_LOAD_THRESHOLD 3
+#define ENERGY_LIMIT          50
+#define TICK_WEIGHT           1
+#define ENERGY_DECAY          5
+
+// ---------------------------------------------------------------------------
+// count_runnable – return an approximate count of RUNNABLE processes.
+//
+// This function scans the global proc[] table and counts processes in the
+// RUNNABLE state.  It does NOT acquire per-process locks: the result is an
+// approximate hint used as an energy-saving signal, not a hard guarantee.
+// Reading state without a lock is safe here because:
+//   • We only read a single int-sized field (state) which is updated
+//     atomically on this architecture.
+//   • The value is only used as a load hint; a stale read just means we
+//     may make a slightly sub-optimal scheduling decision for one round,
+//     which is harmless.
+// This is the same lockless-read pattern used by procdump() in xv6.
+// ---------------------------------------------------------------------------
+static int
+count_runnable(void)
+{
+  struct proc *q;
+  int n = 0;
+  for(q = proc; q < &proc[NPROC]; q++){
+    if(q->state == RUNNABLE)
+      n++;
+  }
+  return n;
+}
+
 static void
 check_and_apply_eco_throttle(struct proc *p)
 {
@@ -201,6 +263,11 @@ found:
   p->cooldown_ticks = 0;
   p->times_throttled = 0;
 
+  // Initialize Energy-Aware Scheduler field.
+  // Every new process starts with a clean energy slate so that freshly
+  // forked children are not unfairly penalised for their parent's past.
+  p->energy_score = 0;
+
   return p;
 }
 
@@ -224,6 +291,8 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  // Reset energy score so a reused proc slot starts fresh.
+  p->energy_score = 0;
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -476,6 +545,34 @@ kwait(uint64 addr)
 //  - swtch to start running that process.
 //  - eventually that process transfers control
 //    via swtch back to the scheduler.
+//
+// ENERGY-AWARE EXTENSION
+// ----------------------
+// In addition to the original round-robin logic and the EcoThrottle
+// busy-wait detection (cooldown_ticks), this scheduler now implements a
+// second, complementary energy-saving mechanism:
+//
+//   1. Before scheduling any RUNNABLE process, count how many RUNNABLE
+//      processes exist ("active load").
+//   2. If the load is LOW (active < ENERGY_LOAD_THRESHOLD) AND the
+//      candidate process is HIGH-ENERGY (energy_score > ENERGY_LIMIT),
+//      skip the process for this pass and decay its energy_score.
+//   3. If the load is HIGH, or the process has a low energy_score, run
+//      it normally.
+//   4. After the process returns from swtch, increment its energy_score
+//      by TICK_WEIGHT to record that it used one scheduling quantum.
+//
+// SAFETY GUARANTEES
+// -----------------
+//   • No starvation: ENERGY_DECAY is subtracted every time a process is
+//     skipped.  After (ENERGY_LIMIT / ENERGY_DECAY) skips the score drops
+//     below ENERGY_LIMIT and the process is scheduled unconditionally.
+//   • No deadlock: if ALL runnable processes have high energy (i.e. found
+//     stays 0), the next outer-loop iteration still finds them and the
+//     wfi path handles true idle correctly.
+//   • Coexistence: the EcoThrottle cooldown_ticks check runs first; the
+//     energy check only applies to processes that are not in cooldown.
+//     The two mechanisms are independent and additive.
 void
 scheduler(void)
 {
@@ -492,13 +589,53 @@ scheduler(void)
     intr_on();
     intr_off();
 
+    // Count the number of RUNNABLE processes BEFORE the per-process loop.
+    // This is an approximate snapshot used as the "system load" signal for
+    // the energy-aware check below.  We read without locks (see comment in
+    // count_runnable()) because we only need a rough hint, not a precise
+    // count.  Computing it once per outer loop is intentional: we want a
+    // stable load figure for the entire scheduling round, not one that
+    // changes mid-loop as processes transition states.
+    int active = count_runnable();
+
     int found = 0;
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
+
+        // --- EcoThrottle check (existing feature) ---
+        // If this process was flagged as a busy-looper and is still in its
+        // cooldown period, decrement the counter and skip it entirely.
         if(p->cooldown_ticks > 0){
           p->cooldown_ticks--;
+
+        // --- Energy-Aware Scheduler check (new feature) ---
+        // Only applies when the process is NOT in EcoThrottle cooldown.
+        // Condition: system is lightly loaded AND this process has used a
+        // lot of CPU energy so far.
+        } else if(active < ENERGY_LOAD_THRESHOLD &&
+                  p->energy_score > ENERGY_LIMIT) {
+          // The system is mostly idle but this process has been running
+          // heavily.  Simulate an energy-saving pause: skip it for this
+          // scheduling round.
+          //
+          // Why is this safe?
+          //   • We subtract ENERGY_DECAY each time we skip, so the score
+          //     will eventually fall below ENERGY_LIMIT (guaranteed in at
+          //     most ENERGY_LIMIT/ENERGY_DECAY passes).
+          //   • Once the score drops below ENERGY_LIMIT the else-branch
+          //     below runs and the process is scheduled normally, so it
+          //     cannot starve forever.
+          //   • If more processes become runnable (active >= LOAD_THRESHOLD)
+          //     the check is bypassed and heavy processes run again,
+          //     ensuring responsiveness under load.
+          if(p->energy_score > ENERGY_DECAY)
+            p->energy_score -= ENERGY_DECAY;
+          else
+            p->energy_score = 0;
+
         } else {
+          // --- Normal scheduling path ---
           // Switch to chosen process.  It is the process's job
           // to release its lock and then reacquire it
           // before jumping back to us.
@@ -510,12 +647,26 @@ scheduler(void)
           // It should have changed its p->state before coming back.
           c->proc = 0;
           found = 1;
+
+          // Energy accounting: record that this process just consumed one
+          // scheduling quantum.  We do this AFTER swtch so the increment
+          // happens in the scheduler context, with p->lock still held,
+          // which avoids any concurrent modification from the timer path.
+          // TICK_WEIGHT is 1 by default, making the score easy to read:
+          // "energy_score == N" means "this process has run N rounds".
+          p->energy_score += TICK_WEIGHT;
         }
       }
       release(&p->lock);
     }
     if(found == 0) {
       // nothing to run; stop running on this core until an interrupt.
+      // This is the normal xv6 idle path (wfi = wait-for-interrupt).
+      // When all runnable processes are either in EcoThrottle cooldown or
+      // deferred by the energy-aware check, we land here and the CPU
+      // enters a low-power wait state until the next timer tick.  This
+      // naturally simulates an idle / energy-saving mode at the hardware
+      // level without any extra code.
       asm volatile("wfi");
     }
   }
@@ -826,6 +977,8 @@ ecopstat(uint64 uaddr, int max)
       st.busy_score = p->busy_score;
       st.cooldown_ticks = p->cooldown_ticks;
       st.times_throttled = p->times_throttled;
+      // Export energy_score so user-space tools (ecops) can display it.
+      st.energy_score = p->energy_score;
       release(&p->lock);
       if(copyout(cur->pagetable, uaddr + count * sizeof(st),
                  (char *)&st, sizeof(st)) < 0)

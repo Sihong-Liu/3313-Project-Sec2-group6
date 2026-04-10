@@ -113,4 +113,11 @@ struct proc {
   int busy_score;              // Score tracking repeated busy-wait behavior
   int cooldown_ticks;          // Remaining ticks to skip scheduling
   int times_throttled;         // Number of times throttling was applied
+
+  // Energy-Aware Scheduler: tracks how much CPU energy this process has
+  // accumulated over its lifetime.  The scheduler uses this score together
+  // with a system-load check to temporarily deprioritize high-energy
+  // processes when the machine is lightly loaded, simulating an energy-
+  // saving mode.  The score decays automatically so no process starves.
+  int energy_score;            // Cumulative CPU-energy score (ticks run)
 };

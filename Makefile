@@ -158,6 +158,7 @@ UPROGS=\
 	$U/_ecops\
 	$U/_ecomem\
 	$U/_memwaste\
+	$U/_energy_demo\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

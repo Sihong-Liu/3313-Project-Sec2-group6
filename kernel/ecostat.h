@@ -11,6 +11,10 @@ struct ecostat {
   int busy_score;
   int cooldown_ticks;
   int times_throttled;
+  // Energy-Aware Scheduler: cumulative energy score for this process.
+  // A higher value means the process has consumed more CPU time and may
+  // be deprioritized by the energy-aware scheduler under low system load.
+  int energy_score;
 };
 
 #endif
