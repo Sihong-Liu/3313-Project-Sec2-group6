@@ -20,8 +20,7 @@ main()
     kvminit();       // create kernel page table
     kvminithart();   // turn on paging
     procinit();      // process table
-    // Sihong's Code: initialize environmental monitoring subsystem
-    sensorinit();    // environmental monitoring state
+    sensorinit();    // Sihong's: initialize environmental monitoring subsystem
     trapinit();      // trap vectors
     trapinithart();  // install kernel trap vector
     plicinit();      // set up interrupt controller

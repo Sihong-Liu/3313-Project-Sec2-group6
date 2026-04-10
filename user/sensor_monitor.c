@@ -6,9 +6,7 @@
 #define MONITOR_DURATION_TICKS 150
 #define TICKS_PER_SECOND 10
 
-static void
-format_time_from_ticks(int ticks, int *hours, int *minutes, int *seconds)
-{// Convert ticks to hours, minutes, and seconds for display when reading is taken
+static void format_time_from_ticks(int ticks, int *hours, int *minutes, int *seconds){// Convert ticks to hours, minutes, and seconds for display when reading is taken
   int total_seconds;
 
   total_seconds = ticks / TICKS_PER_SECOND;
@@ -17,9 +15,7 @@ format_time_from_ticks(int ticks, int *hours, int *minutes, int *seconds)
   *seconds = total_seconds % 60;
 }
 
-static int
-read_stats(int type, struct sensor_stats *stats)
-{
+static int read_stats(int type, struct sensor_stats *stats){
   if(getsensorstats(type, stats) < 0){
     fprintf(2, "sensor_monitor: failed to read sensor type %d\n", type);
     return -1;
@@ -27,9 +23,7 @@ read_stats(int type, struct sensor_stats *stats)
   return 0;
 }
 
-int
-main(void)
-{
+int main(void){
   struct sensor_stats temp;
   struct sensor_stats air;
   struct sensor_stats energy;
@@ -70,6 +64,6 @@ main(void)
       printf("sensor_monitor: stopping after %d ticks\n", MONITOR_DURATION_TICKS);
       exit(0);
     }
-    pause(20);
+    pause(20);// Sleep for a bit before reading again to avoid busy waiting, but also to allow sensor processes to submit new data
   }
 }

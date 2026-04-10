@@ -3,18 +3,14 @@
 #include "kernel/sensor.h"
 #include "user/user.h"
 
-static int
-next_air_value(int step)
-{
-  int span = 180 - 20 + 1;
-  int seed = uptime() + getpid() * 23 + step * 29;
+static int next_air_value(int step){
+  int span = 180 - 20 + 1;//define a simulated range
+  int seed = uptime() + getpid() * 23 + step * 29;// We want the air quality index to be somewhat correlated with time and process ID, but also to change over time as the step increases
 
   return 20 + (seed % span);
 }
 
-int
-main(void)
-{
+int main(void){
   int step;
 
   step = 0;
@@ -24,6 +20,6 @@ main(void)
       exit(1);
     }
     step++;
-    pause(24);
+    pause(24);//simulates different sampling rate for different sensors.
   }
 }

@@ -17,23 +17,17 @@ static struct sensor_totals sensor_totals_by_type[SENSOR_TYPE_MAX + 1];
 static int sensor_write_index;
 static int sensor_count;
 
-static int
-sensor_type_valid(int type)
-{
+static int sensor_type_valid(int type){
   return type >= SENSOR_TYPE_MIN && type <= SENSOR_TYPE_MAX;
 }
 
-void
-sensorinit(void)
-{
+void sensorinit(void){
   initlock(&sensorlock, "sensor");
   sensor_write_index = 0;
   sensor_count = 0;
 }
 
-int
-sensor_submit(int type, int value)
-{
+int sensor_submit(int type, int value){
   int tick_snapshot;
   struct sensor_totals *stats;
 
@@ -64,9 +58,7 @@ sensor_submit(int type, int value)
   return 0;
 }
 
-int
-sensor_get_stats(int type, struct sensor_stats *out)
-{
+int sensor_get_stats(int type, struct sensor_stats *out){
   struct sensor_totals *stats;
 
   if(!sensor_type_valid(type) || out == 0)

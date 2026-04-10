@@ -3,18 +3,14 @@
 #include "kernel/sensor.h"
 #include "user/user.h"
 
-static int
-next_temperature_value(int step)
-{
+static int next_temperature_value(int step){
   int span = 35 - 18 + 1;
   int seed = uptime() + getpid() * 17 + step * 31;
 
   return 18 + (seed % span);
 }
 
-int
-main(void)
-{
+int main(void){
   int step;
 
   step = 0;
